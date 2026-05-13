@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVG Converter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --surface2: #1f1f1f;
+    --border: #2a2a2a;
+    --accent: #e8ff47;
+    --accent2: #47c8ff;
+    --text: #f0f0f0;
+    --text-dim: #888;
+    --danger: #ff4747;
+    --success: #47ff9a;
+  }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px;
+  }
+
+  header {
+    width: 100%;
+    max-width: 640px;
+    margin-bottom: 48px;
+  }
+
+  .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  h1 span { color: var(--accent2); }
+
+  .sub {
+    margin-top: 10px;
+    color: var(--text-dim);
+    font-size: 14px;
+    font-weight: 300;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 640px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 16px;
+  }
+
+  .card-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+
+  /* Drop zone */
+  .dropzone {
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--accent);
+    background: rgba(232, 255, 71, 0.03);
+  }
+
+  .dropzone input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .dropzone-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .dropzone-text {
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+
+  .dropzone-text strong {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .file-info {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: var(--surface2);
+    border-radius: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--success);
+    display: none;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .file-info.show { display: flex; }
+  .file-info .fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-info .fsize { color: var(--text-dim); font-size: 11px; }
+
+  /* Options */
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .option-group label {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .seg-control {
+    display: flex;
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 3px;
+    gap: 3px;
+  }
+
+  .seg-control input { display: none; }
+
+  .seg-control label {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-dim);
+    transition: all 0.15s ease;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 0;
+  }
+
+  .seg-control input:checked + label {
+    background: var(--accent);
+    color: #0e0e0e;
+  }
+
+  /* Scale slider */
+  .scale-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+  .scale-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* Quality (for JPG) */
+  .quality-wrap { display: none; }
+  .quality-wrap.show { display: block; }
+
+  /* Preview */
+  .preview-wrap {
+    display: none;
+    margin-top: 20px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: repeating-conic-gradient(#1a1a1a 0% 25%, #222 0% 50%) 0 0 / 16px 16px;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .preview-wrap.show { display: block; }
+  .preview-wrap img { max-width: 100%; max-height: 320px; display: block; margin: 0 auto; }
+
+  /* Convert button */
+  .btn-convert {
+    width: 100%;
+    max-width: 640px;
+    padding: 18px;
+    background: var(--accent);
+    color: #0e0e0e;
+    border: none;
+    border-radius: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 16px;
+  }
+
+  .btn-convert:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(232,255,71,0.2); }
+  .btn-convert:active { transform: translateY(0); }
+  .btn-convert:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* Status */
+  .status {
+    width: 100%;
+    max-width: 640px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    display: none;
+  }
+
+  .status.show { display: block; }
+  .status.error { background: rgba(255,71,71,0.1); border: 1px solid rgba(255,71,71,0.3); color: var(--danger); }
+  .status.success { background: rgba(71,255,154,0.08); border: 1px solid rgba(71,255,154,0.25); color: var(--success); }
+
+  /* Download button */
+  .btn-download {
+    display: none;
+    width: 100%;
+    max-width: 640px;
+    padding: 18px;
+    background: transparent;
+    color: var(--accent2);
+    border: 1.5px solid var(--accent2);
+    border-radius: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+    text-decoration: none;
+    margin-top: 8px;
+  }
+
+  .btn-download.show { display: block; }
+  .btn-download:hover { background: rgba(71,200,255,0.08); }
+
+  canvas { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="tag">// utility tool</span>
+  <h1>SVG <span>→</span><br>PNG / JPG</h1>
+  <p class="sub">瀏覽器端轉換，檔案不會上傳至任何伺服器</p>
+</header>
+
+<div class="card">
+  <div class="card-label">01 — 選擇 SVG 檔案</div>
+  <div class="dropzone" id="dropzone">
+    <input type="file" id="fileInput" accept=".svg,image/svg+xml">
+    <span class="dropzone-icon">📂</span>
+    <p class="dropzone-text">拖曳 SVG 至此，或 <strong>點擊選擇</strong></p>
+  </div>
+  <div class="file-info" id="fileInfo">
+    <span>✓</span>
+    <span class="fname" id="fileName"></span>
+    <span class="fsize" id="fileSize"></span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-label">02 — 輸出設定</div>
+  <div class="options-grid">
+    <div class="option-group">
+      <label>格式</label>
+      <div class="seg-control">
+        <input type="radio" name="fmt" id="fmtPng" value="png" checked>
+        <label for="fmtPng">PNG</label>
+        <input type="radio" name="fmt" id="fmtJpg" value="jpg">
+        <label for="fmtJpg">JPG</label>
+      </div>
+    </div>
+    <div class="option-group">
+      <label>縮放倍率</label>
+      <div class="scale-wrap">
+        <input type="range" id="scaleRange" min="1" max="4" step="0.5" value="2">
+        <span class="scale-val" id="scaleVal">2×</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="quality-wrap" id="qualityWrap" style="margin-top:16px">
+    <div class="option-group">
+      <label>JPG 品質</label>
+      <div class="scale-wrap">
+        <input type="range" id="qualityRange" min="0.5" max="1" step="0.05" value="0.92">
+        <span class="scale-val" id="qualityVal">92%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="preview-wrap" id="previewWrap">
+    <img id="previewImg" src="" alt="preview">
+  </div>
+</div>
+
+<button class="btn-convert" id="btnConvert" disabled>轉換</button>
+<div class="status" id="status"></div>
+<a class="btn-download" id="btnDownload" download>↓ 下載</a>
+
+<canvas id="canvas"></canvas>
+
+<script>
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileInfo = document.getElementById('fileInfo');
+  const fileName = document.getElementById('fileName');
+  const fileSize = document.getElementById('fileSize');
+  const scaleRange = document.getElementById('scaleRange');
+  const scaleVal = document.getElementById('scaleVal');
+  const qualityRange = document.getElementById('qualityRange');
+  const qualityVal = document.getElementById('qualityVal');
+  const qualityWrap = document.getElementById('qualityWrap');
+  const btnConvert = document.getElementById('btnConvert');
+  const btnDownload = document.getElementById('btnDownload');
+  const status = document.getElementById('status');
+  const canvas = document.getElementById('canvas');
+  const previewWrap = document.getElementById('previewWrap');
+  const previewImg = document.getElementById('previewImg');
+
+  let svgFile = null;
+
+  // Drag & drop
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f && (f.type === 'image/svg+xml' || f.name.endsWith('.svg'))) loadFile(f);
+    else showStatus('error', '請選擇 .svg 格式的檔案');
+  });
+
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) loadFile(e.target.files[0]);
+  });
+
+  function loadFile(f) {
+    svgFile = f;
+    fileName.textContent = f.name;
+    fileSize.textContent = formatSize(f.size);
+    fileInfo.classList.add('show');
+    btnConvert.disabled = false;
+    hideStatus();
+    btnDownload.classList.remove('show');
+
+    // Preview
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+      previewWrap.classList.add('show');
+    };
+    reader.readAsDataURL(f);
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  }
+
+  scaleRange.addEventListener('input', () => {
+    scaleVal.textContent = scaleRange.value + '×';
+  });
+
+  qualityRange.addEventListener('input', () => {
+    qualityVal.textContent = Math.round(qualityRange.value * 100) + '%';
+  });
+
+  document.querySelectorAll('input[name="fmt"]').forEach(r => {
+    r.addEventListener('change', () => {
+      qualityWrap.classList.toggle('show', r.value === 'jpg' && r.checked);
+    });
+  });
+
+  btnConvert.addEventListener('click', convert);
+
+  function convert() {
+    if (!svgFile) return;
+
+    const fmt = document.querySelector('input[name="fmt"]:checked').value;
+    const scale = parseFloat(scaleRange.value);
+    const quality = parseFloat(qualityRange.value);
+
+    btnConvert.disabled = true;
+    btnConvert.textContent = '處理中...';
+    hideStatus();
+    btnDownload.classList.remove('show');
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      const svgText = e.target.result;
+      const blob = new Blob([svgText], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+
+      img.onload = () => {
+        const w = (img.naturalWidth || img.width || 800) * scale;
+        const h = (img.naturalHeight || img.height || 600) * scale;
+
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+
+        if (fmt === 'jpg') {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+        } else {
+          ctx.clearRect(0, 0, w, h);
+        }
+
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+
+        const mime = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
+        const dataURL = canvas.toDataURL(mime, fmt === 'jpg' ? quality : undefined);
+
+        const baseName = svgFile.name.replace(/\.svg$/i, '');
+        const outName = `${baseName}.${fmt}`;
+
+        btnDownload.href = dataURL;
+        btnDownload.download = outName;
+        btnDownload.textContent = `↓ 下載 ${outName}`;
+        btnDownload.classList.add('show');
+
+        showStatus('success', `✓ 轉換完成　${w}×${h}px　${fmt.toUpperCase()}`);
+        btnConvert.disabled = false;
+        btnConvert.textContent = '轉換';
+      };
+
+      img.onerror = () => {
+        showStatus('error', '無法解析 SVG，請確認檔案格式正確');
+        btnConvert.disabled = false;
+        btnConvert.textContent = '轉換';
+        URL.revokeObjectURL(url);
+      };
+
+      img.src = url;
+    };
+
+    reader.readAsText(svgFile);
+  }
+
+  function showStatus(type, msg) {
+    status.textContent = msg;
+    status.className = `status show ${type}`;
+  }
+
+  function hideStatus() {
+    status.className = 'status';
+  }
+</script>
+</body>
+</html>
